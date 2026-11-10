@@ -47,6 +47,7 @@ bot = commands.Bot(command_prefix="", intents=intents)
 
 # ── Rate limiting ──────────────────────────────────────────────
 _kod_cooldowns: dict[int, float] = {}
+_synced = False
 
 
 def _check_kod_cooldown(user_id: int) -> bool:
@@ -298,11 +299,13 @@ async def pomoc(interaction: discord.Interaction):
 # ── Startup ────────────────────────────────────────────────────
 @bot.event
 async def on_ready():
+    global _synced
+    if not _synced:
+        await bot.tree.sync()
+        _synced = True
+        log.info("Synced slash commands")
     log.info(f"Logged in as {bot.user}")
     log.info(f"Bot is connected to {len(bot.guilds)} guild(s)")
-    # Sync slash commands to Discord
-    await bot.tree.sync()
-    log.info("Synced slash commands")
 
 
 # ── Validation ─────────────────────────────────────────────────
