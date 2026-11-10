@@ -8,5 +8,3 @@ dist/
 build/
 .git/
 *.7z
-docker-compose.yml
-Dockerfile

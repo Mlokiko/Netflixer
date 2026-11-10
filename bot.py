@@ -61,11 +61,15 @@ def extract_body_text(msg):
         for part in msg.walk():
             if part.get_content_type() == "text/plain":
                 charset = part.get_content_charset() or "utf-8"
-                body = part.get_payload(decode=True).decode(charset, errors="replace")
+                payload = part.get_payload(decode=True)
+                if payload:
+                    body = payload.decode(charset, errors="replace")
                 break
     else:
         charset = msg.get_content_charset() or "utf-8"
-        body = msg.get_payload(decode=True).decode(charset, errors="replace")
+        payload = msg.get_payload(decode=True)
+        if payload:
+            body = payload.decode(charset, errors="replace")
     return body
 
 
