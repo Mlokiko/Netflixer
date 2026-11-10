@@ -24,6 +24,8 @@ Wypełnij dane w `.env`:
 | `POST_DESTINATION` | Gdzie publikować kod: `channel` (na stałym kanale) lub `interaction` (tam, gdzie użytkownik wpisał komendę) |
 | `DISCORD_CHANNEL_ID` | Opcjonalnie — ID kanału (używane gdy `POST_DESTINATION=channel`) |
 | `NETFLINK_EXPIRY_MINUTES` | Czas ważności kodu w minutach (domyślnie: 15) |
+| `KOD_COOLDOWN_SECONDS` | Cooldown między użyciami `/kod` na użytkownika, w sekundach (domyślnie: 10) |
+| `EMAIL_SUBJECT_CODE` | Temat e-maila z kodem Netflixa — domyślnie: `Twój kod tymczasowego dostępu do serwisu Netflix` |
 
 ### 2. Hasło aplikacyjne Google
 
@@ -58,7 +60,7 @@ docker compose up --build
 
 | Komenda | Opis |
 |---------|------|
-| `/kod` | Pobierz najnowszy link do kodu weryfikacyjnego |
+| `/kod` | Pobierz najnowszy link do kodu weryfikacyjnego (cooldown: 10s na użytkownika) |
 | `/ping` | Sprawdza, czy bot jest online |
 | `/pomoc` | Lista wszystkich komend |
 
@@ -66,7 +68,13 @@ docker compose up --build
 
 ## Jak to działa?
 
-Bot przeszukuje skrzynkę Gmail (ostatnie 24h) pod kątem e-maili Netflixa zawierających w temacie „kod" lub „netflix", wyciąga link weryfikacyjny z treści i publikuje go na Discordzie z odliczaniem do wygaśnięcia.
+Bot przeszukuje skrzynkę Gmail (ostatnie 24h) pod kątem e-maili Netflixa, których temat zawiera wartość z `EMAIL_SUBJECT_CODE`. Wyciąga link weryfikacyjny z treści i publikuje go na Discordzie z odliczaniem do wygaśnięcia.
+
+### Ulepszenia
+
+- **Rate limiting** — komenda `/kod` ma cooldown (domyślnie 10s) na użytkownika, co zapobiega spamowi
+- **Retry IMAP** — w przypadku problemów z połączeniem z Gmailiem bot automatycznie ponawia próbę (do 3 razy z backoffiem)
+- **Odporność na puste e-maile** — bot poprawnie obsługuje e-maile bez treści
 
 ### Gdzie publikować kod?
 

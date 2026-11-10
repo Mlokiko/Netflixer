@@ -46,6 +46,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# Suppress discord.py warnings (voice not used by this bot)
+logging.getLogger("discord").setLevel(logging.ERROR)
+logging.getLogger("discord.gateway").setLevel(logging.ERROR)
+
 # ── Discord Bot (slash commands) ───────────────────────────────
 intents = discord.Intents.default()
 intents.message_content = True
