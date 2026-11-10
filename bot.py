@@ -63,7 +63,7 @@ _synced = False
 
 def _check_kod_cooldown(user_id: int) -> bool:
     """Return True if the user is on cooldown."""
-    now = asyncio.get_event_loop().time()
+    now = time.time()
     last_used = _kod_cooldowns.get(user_id, 0)
     if now - last_used < KOD_COOLDOWN_SECONDS:
         return True
@@ -265,7 +265,7 @@ async def send_url_to_discord(url: str, email_date: datetime, channel: discord.a
 async def kod(interaction: discord.Interaction):
     if _check_kod_cooldown(interaction.user.id):
         remaining = KOD_COOLDOWN_SECONDS - int(
-            asyncio.get_event_loop().time() - _kod_cooldowns[interaction.user.id]
+            asyncio.get_running_loop().time() - _kod_cooldowns[interaction.user.id]
         )
         await interaction.response.send_message(
             f"⏳ Poczekaj jeszcze {remaining}s przed kolejnym użyciem komendy.",
