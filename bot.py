@@ -24,7 +24,10 @@ NETFLIX_URL_PATTERN = re.compile(
     r"https://www\.netflix\.com/account/travel/verify\?nftoken=[^\s\"]+"
 )
 
-EMAIL_SUBJECT_KEYWORDS = ["kod", "netflix"]
+EMAIL_SUBJECT_CODE = os.getenv(
+    "EMAIL_SUBJECT_CODE",
+    "Twój kod tymczasowego dostępu do serwisu Netflix",
+).lower()
 NETFLINK_EXPIRY_MINUTES = int(os.getenv("NETFLINK_EXPIRY_MINUTES", "15"))
 
 # ── Logging ────────────────────────────────────────────────────
@@ -132,7 +135,7 @@ def _fetch_latest_netflix_email():
             subject = decode_mime_header(raw_subject)
             subject_lower = subject.lower()
 
-            if all(kw in subject_lower for kw in EMAIL_SUBJECT_KEYWORDS):
+            if EMAIL_SUBJECT_CODE in subject_lower:
                 log.info(f"Found Netflix email: {subject}")
                 body = extract_body_text(msg)
                 url = extract_netflix_url(body)
