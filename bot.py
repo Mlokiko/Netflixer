@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import asyncio
 import logging
 import imaplib
@@ -30,6 +31,8 @@ EMAIL_SUBJECT_CODE = os.getenv(
 ).lower()
 NETFLINK_EXPIRY_MINUTES = int(os.getenv("NETFLINK_EXPIRY_MINUTES", "15"))
 KOD_COOLDOWN_SECONDS = int(os.getenv("KOD_COOLDOWN_SECONDS", "10"))
+IMAP_MAX_RETRIES = 3
+IMAP_BASE_DELAY = 1  # seconds
 
 # ── Logging ────────────────────────────────────────────────────
 logging.basicConfig(
@@ -124,10 +127,10 @@ def format_expiry_timestamp(email_date):
 
 
 # ── Email Fetching ─────────────────────────────────────────────
-def _fetch_latest_netflix_email():
-    mail = None
+def _do_imap_fetch():
+    """Perform a single IMAP fetch attempt. Raises on transient errors."""
+    mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
     try:
-        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
         mail.login(EMAIL_ADDRESS, EMAIL_APP_PASSWORD)
         mail.select("INBOX")
 
@@ -167,13 +170,26 @@ def _fetch_latest_netflix_email():
 
         log.info("No matching Netflix email found")
         return None, None
-
-    except Exception as e:
-        log.error(f"IMAP error: {e}")
-        return None, None
     finally:
-        if mail:
-            mail.logout()
+        mail.logout()
+
+
+def _fetch_latest_netflix_email():
+    """Fetch with retry logic for transient IMAP errors."""
+    for attempt in range(1, IMAP_MAX_RETRIES + 1):
+        try:
+            result = _do_imap_fetch()
+            return result
+        except (imaplib.IMAP4.error, OSError, TimeoutError) as e:
+            log.warning(f"IMAP attempt {attempt}/{IMAP_MAX_RETRIES} failed: {e}")
+            if attempt < IMAP_MAX_RETRIES:
+                time.sleep(IMAP_BASE_DELAY * (2 ** (attempt - 1)))
+            else:
+                log.error(f"IMAP failed after {IMAP_MAX_RETRIES} attempts")
+                return None, None
+        except Exception as e:
+            log.error(f"IMAP error (not retrying): {e}")
+            return None, None
 
 
 async def fetch_latest_netflix_url():
