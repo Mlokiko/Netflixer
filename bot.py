@@ -29,6 +29,7 @@ EMAIL_SUBJECT_CODE = os.getenv(
     "Twój kod tymczasowego dostępu do serwisu Netflix",
 ).lower()
 NETFLINK_EXPIRY_MINUTES = int(os.getenv("NETFLINK_EXPIRY_MINUTES", "15"))
+KOD_COOLDOWN_SECONDS = int(os.getenv("KOD_COOLDOWN_SECONDS", "10"))
 
 # ── Logging ────────────────────────────────────────────────────
 logging.basicConfig(
@@ -43,6 +44,20 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="", intents=intents)
+
+# ── Rate limiting ──────────────────────────────────────────────
+_kod_cooldowns: dict[int, float] = {}
+
+
+def _check_kod_cooldown(user_id: int) -> bool:
+    """Return True if the user is on cooldown."""
+    now = asyncio.get_event_loop().time()
+    last_used = _kod_cooldowns.get(user_id, 0)
+    if now - last_used < KOD_COOLDOWN_SECONDS:
+        return True
+    _kod_cooldowns[user_id] = now
+    return False
+
 
 # ── Helpers ────────────────────────────────────────────────────
 def decode_mime_header(header_value):
@@ -225,6 +240,16 @@ async def send_url_to_discord(url: str, email_date, channel=None):
 # ── Slash Commands ─────────────────────────────────────────────
 @bot.tree.command(name="kod", description="Link do uzyskania kodu jednorazowego do Netflix'a")
 async def kod(interaction: discord.Interaction):
+    if _check_kod_cooldown(interaction.user.id):
+        remaining = KOD_COOLDOWN_SECONDS - int(
+            asyncio.get_event_loop().time() - _kod_cooldowns[interaction.user.id]
+        )
+        await interaction.response.send_message(
+            f"⏳ Poczekaj jeszcze {remaining}s przed kolejnym użyciem komendy.",
+            ephemeral=True,
+        )
+        return
+
     await interaction.response.defer()
     url, email_date = await fetch_latest_netflix_url()
     if url == "no_url":
