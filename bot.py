@@ -225,11 +225,14 @@ async def send_url_to_discord(url: str, email_date: datetime, channel: discord.a
     Args:
         url: The Netflix verification URL.
         email_date: datetime of the email (for expiry calculation).
-        channel: Optional channel to send to. If None, uses _resolve_channel().
+        channel: Optional channel to send to. If None and POST_DESTINATION is "channel",
+                 falls back to the user's invocation channel (not a random one).
     """
     try:
         if channel is None:
-            channel = _resolve_channel()
+            if POST_DESTINATION == "channel" and DISCORD_CHANNEL_ID:
+                channel = _resolve_channel()
+            # else: leave as None — the caller (e.g. /kod) will use interaction.channel
         if not channel:
             log.error("No suitable channel found to send the URL")
             return False
@@ -278,7 +281,12 @@ async def kod(interaction: discord.Interaction):
     if url == "no_url":
         await interaction.followup.send("❌ Znaleziono email od Netflix'a, ale nie znaleziono linku do kodu")
     elif url:
-        target_channel = interaction.channel if POST_DESTINATION == "interaction" else None
+        # If POST_DESTINATION=channel but no DISCORD_CHANNEL_ID, send to the user's channel
+        target_channel = (
+            interaction.channel
+            if POST_DESTINATION != "channel" or not DISCORD_CHANNEL_ID
+            else None
+        )
         sent = await send_url_to_discord(url, email_date, channel=target_channel)
         if not sent:
             await interaction.followup.send("❌ Nie udało się wysłać kodu — sprawdź uprawnienia bota")
