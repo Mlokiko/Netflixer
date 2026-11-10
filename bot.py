@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import os
 import re
 import time
 import asyncio
 import logging
 import imaplib
-from email.parser import BytesParser
 from email.header import decode_header
+from email.message import Message
+from email.parser import BytesParser
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 import discord
 from discord.ext import commands
@@ -64,11 +68,11 @@ def _check_kod_cooldown(user_id: int) -> bool:
 
 
 # ── Helpers ────────────────────────────────────────────────────
-def decode_mime_header(header_value):
+def decode_mime_header(header_value: str | None) -> str:
     if not header_value:
         return ""
     parts = decode_header(header_value)
-    decoded = []
+    decoded: list[str] = []
     for part, charset in parts:
         if isinstance(part, bytes):
             decoded.append(part.decode(charset or "utf-8", errors="replace"))
@@ -77,40 +81,38 @@ def decode_mime_header(header_value):
     return "".join(decoded)
 
 
-def extract_body_text(msg):
-    body = ""
+def extract_body_text(msg: Message) -> str:
     if msg.is_multipart():
         for part in msg.walk():
             if part.get_content_type() == "text/plain":
                 charset = part.get_content_charset() or "utf-8"
                 payload = part.get_payload(decode=True)
                 if payload:
-                    body = payload.decode(charset, errors="replace")
-                break
+                    return payload.decode(charset, errors="replace")
     else:
         charset = msg.get_content_charset() or "utf-8"
         payload = msg.get_payload(decode=True)
         if payload:
-            body = payload.decode(charset, errors="replace")
-    return body
+            return payload.decode(charset, errors="replace")
+    return ""
 
 
-def extract_netflix_url(body):
+def extract_netflix_url(body: str) -> str | None:
     match = NETFLIX_URL_PATTERN.search(body)
     return match.group(0) if match else None
 
 
-def parse_email_date(date_str):
+def parse_email_date(date_str: str) -> datetime:
     try:
         from email.utils import parsedate_to_datetime
         return parsedate_to_datetime(date_str)
     except Exception:
         log.warning(f"Could not parse date: {date_str}, using now")
-        return datetime.now()
+        return datetime.now(timezone.utc)
 
 
-def format_remaining_time(email_date):
-    now = datetime.now(email_date.tzinfo) if email_date.tzinfo else datetime.now()
+def format_remaining_time(email_date: datetime) -> str:
+    now = datetime.now(email_date.tzinfo) if email_date.tzinfo else datetime.now(timezone.utc)
     elapsed = now - email_date
     remaining = timedelta(minutes=NETFLINK_EXPIRY_MINUTES) - elapsed
     if remaining.total_seconds() <= 0:
@@ -121,13 +123,13 @@ def format_remaining_time(email_date):
     return f"Pozostało {minutes}:{seconds:02d} min"
 
 
-def format_expiry_timestamp(email_date):
+def format_expiry_timestamp(email_date: datetime) -> str:
     expiry = email_date + timedelta(minutes=NETFLINK_EXPIRY_MINUTES)
     return expiry.strftime("%d.%m.%Y %H:%M")
 
 
 # ── Email Fetching ─────────────────────────────────────────────
-def _do_imap_fetch():
+def _do_imap_fetch() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
     """Perform a single IMAP fetch attempt. Raises on transient errors."""
     mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
     try:
@@ -174,7 +176,7 @@ def _do_imap_fetch():
         mail.logout()
 
 
-def _fetch_latest_netflix_email():
+def _fetch_latest_netflix_email() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
     """Fetch with retry logic for transient IMAP errors."""
     for attempt in range(1, IMAP_MAX_RETRIES + 1):
         try:
@@ -192,11 +194,11 @@ def _fetch_latest_netflix_email():
             return None, None
 
 
-async def fetch_latest_netflix_url():
+async def fetch_latest_netflix_url() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
     return await asyncio.to_thread(_fetch_latest_netflix_email)
 
 
-def _resolve_channel():
+def _resolve_channel() -> discord.abc.Messageable | None:
     """Resolve the target channel. Returns None if nothing found."""
     if DISCORD_CHANNEL_ID:
         try:
@@ -213,7 +215,7 @@ def _resolve_channel():
     return channel
 
 
-async def send_url_to_discord(url: str, email_date, channel=None):
+async def send_url_to_discord(url: str, email_date: datetime, channel: discord.abc.Messageable | None = None) -> bool:
     """Send the Netflix URL embed to a channel.
     
     Args:
@@ -325,8 +327,8 @@ async def on_ready():
 
 
 # ── Validation ─────────────────────────────────────────────────
-def validate_config():
-    errors = []
+def validate_config() -> None:
+    errors: list[str] = []
 
     if not DISCORD_TOKEN:
         errors.append("DISCORD_BOT_TOKEN is not set")
