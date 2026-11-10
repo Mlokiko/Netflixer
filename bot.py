@@ -334,17 +334,70 @@ async def on_ready():
         await bot.tree.sync()
         _synced = True
         log.info("Synced slash commands")
+
     log.info(f"Logged in as {bot.user}")
     log.info(f"Bot is connected to {len(bot.guilds)} guild(s)")
 
+    # ── Warn if configured channel can't be resolved ──
+    if DISCORD_CHANNEL_ID and POST_DESTINATION == "channel":
+        try:
+            channel = bot.get_channel(int(DISCORD_CHANNEL_ID))
+            if channel:
+                log.info(f"Target channel resolved: #{channel.name} (ID: {channel.id})")
+            else:
+                log.warning(
+                    f"DISCORD_CHANNEL_ID={DISCORD_CHANNEL_ID} could not be resolved. "
+                    "The bot may not have access to this channel, or it doesn't exist. "
+                    "Codes will fall back to the first writable channel."
+                )
+        except ValueError:
+            log.warning(f"Invalid DISCORD_CHANNEL_ID: {DISCORD_CHANNEL_ID!r}")
+
 
 # ── Validation ─────────────────────────────────────────────────
+def _validate_discord_token() -> None:
+    """Validate Discord token format. Raises ValueError on failure."""
+    if not DISCORD_TOKEN:
+        raise ValueError("DISCORD_BOT_TOKEN is not set")
+    # Discord tokens have the format: <base64_id>.<base64_timestamp>.<signature>
+    parts = DISCORD_TOKEN.split(".")
+    if len(parts) != 3:
+        raise ValueError(
+            f"DISCORD_BOT_TOKEN has invalid format (expected 3 parts separated by '.'): {DISCORD_TOKEN!r}"
+        )
+    for i, part in enumerate(parts):
+        if not part:
+            raise ValueError(f"DISCORD_BOT_TOKEN part {i + 1} is empty")
+
+
+def _validate_imap_credentials() -> None:
+    """Test IMAP login with the configured credentials. Raises ValueError on failure."""
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+        mail.login(EMAIL_ADDRESS, EMAIL_APP_PASSWORD)
+        mail.logout()
+        log.info("IMAP credentials validated successfully")
+    except imaplib.IMAP4.authentication_errors:
+        raise ValueError(
+            "IMAP login failed — check EMAIL_ADDRESS and EMAIL_APP_PASSWORD. "
+            "Ensure App Passwords are enabled in your Google account."
+        )
+    except imaplib.IMAP4.error as e:
+        raise ValueError(f"IMAP error during validation: {e}")
+    except OSError as e:
+        raise ValueError(f"Cannot reach imap.gmail.com: {e}")
+
+
 def validate_config() -> None:
     errors: list[str] = []
 
-    if not DISCORD_TOKEN:
-        errors.append("DISCORD_BOT_TOKEN is not set")
+    # ── Discord token ──
+    try:
+        _validate_discord_token()
+    except ValueError as e:
+        errors.append(str(e))
 
+    # ── Email credentials ──
     if not EMAIL_ADDRESS:
         errors.append("EMAIL_ADDRESS is not set")
     elif "@" not in EMAIL_ADDRESS:
@@ -353,6 +406,13 @@ def validate_config() -> None:
     if not EMAIL_APP_PASSWORD:
         errors.append("EMAIL_APP_PASSWORD is not set")
 
+    if EMAIL_ADDRESS and EMAIL_APP_PASSWORD:
+        try:
+            _validate_imap_credentials()
+        except ValueError as e:
+            errors.append(str(e))
+
+    # ── Channel ID format ──
     if DISCORD_CHANNEL_ID:
         try:
             int(DISCORD_CHANNEL_ID)
