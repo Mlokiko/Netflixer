@@ -1,0 +1,21 @@
+services:
+  netflix-bot:
+    build: .
+    container_name: netflix-code-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    mem_limit: 256m
+    cpus: 0.5
+    logging:     # ── Log rotation (prevents disk fill-up) ───
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # ── Health check (auto-restart on crash) ────────────────────
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f bot.py || exit 1"]
+      interval: 240s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
