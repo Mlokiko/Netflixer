@@ -318,6 +318,14 @@ async def pomoc(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
+# ── Message Handling ───────────────────────────────────────────
+# Only slash commands — ignore all text messages entirely
+@bot.event
+async def on_message(message: discord.Message):
+    # Slash commands are handled by bot.tree, not process_commands
+    pass
+
+
 # ── Startup ────────────────────────────────────────────────────
 @bot.event
 async def on_ready():
