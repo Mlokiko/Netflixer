@@ -59,10 +59,22 @@ bot = commands.Bot(command_prefix="", intents=intents)
 # ── Rate limiting ──────────────────────────────────────────────
 _kod_cooldowns: dict[int, float] = {}
 _synced = False
+_COOLDOWN_MAX_AGE = 86400  # 24 hours — stale entries older than this are pruned
+
+
+def _prune_cooldowns() -> None:
+    """Remove cooldown entries older than _COOLDOWN_MAX_AGE."""
+    cutoff = time.time() - _COOLDOWN_MAX_AGE
+    stale = [uid for uid, t in _kod_cooldowns.items() if t < cutoff]
+    for uid in stale:
+        del _kod_cooldowns[uid]
 
 
 def _check_kod_cooldown(user_id: int) -> bool:
     """Return True if the user is on cooldown."""
+    # Prune stale entries on every call (cheap for small dicts)
+    _prune_cooldowns()
+
     now = time.time()
     last_used = _kod_cooldowns.get(user_id, 0)
     if now - last_used < KOD_COOLDOWN_SECONDS:
