@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import signal
+import socket
 import time
 import asyncio
 import logging
@@ -154,6 +155,7 @@ def format_expiry_timestamp(email_date: datetime) -> str:
 def _do_imap_fetch() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
     """Perform a single IMAP fetch attempt. Raises on transient errors."""
     mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+    mail.sock.settimeout(30)  # 30s timeout on all socket operations
     try:
         mail.login(EMAIL_ADDRESS, EMAIL_APP_PASSWORD)
         mail.select("INBOX")
