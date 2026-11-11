@@ -16,16 +16,16 @@ cp .env.example .env
 
 Wypełnij dane w `.env`:
 
-| Zmienna | Opis |
-|---------|------|
-| `DISCORD_BOT_TOKEN` | Token bota z [Discord Developer Portal](https://discord.com/developers/applications) |
-| `EMAIL_ADDRESS` | Twój adres Gmail |
-| `EMAIL_APP_PASSWORD` | Hasło aplikacyjne Google (patrz niżej) |
-| `POST_DESTINATION` | Gdzie publikować kod: `channel` (na stałym kanale) lub `interaction` (tam, gdzie użytkownik wpisał komendę) |
-| `DISCORD_CHANNEL_ID` | Opcjonalnie — ID kanału (używane gdy `POST_DESTINATION=channel`) |
-| `NETFLINK_EXPIRY_MINUTES` | Czas ważności kodu w minutach (domyślnie: 15) |
-| `KOD_COOLDOWN_SECONDS` | Cooldown między użyciami `/kod` na użytkownika, w sekundach (domyślnie: 10) |
-| `EMAIL_SUBJECT_CODE` | Temat e-maila z kodem Netflixa — domyślnie: `Twój kod tymczasowego dostępu do serwisu Netflix` |
+| Zmienna                   | Opis                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `DISCORD_BOT_TOKEN`       | Token bota z [Discord Developer Portal](https://discord.com/developers/applications)                        |
+| `EMAIL_ADDRESS`           | Twój adres Gmail                                                                                            |
+| `EMAIL_APP_PASSWORD`      | Hasło aplikacyjne Google (patrz niżej)                                                                      |
+| `POST_DESTINATION`        | Gdzie publikować kod: `channel` (na stałym kanale) lub `interaction` (tam, gdzie użytkownik wpisał komendę) |
+| `DISCORD_CHANNEL_ID`      | Opcjonalnie — ID kanału (używane gdy `POST_DESTINATION=channel`)                                            |
+| `NETFLINK_EXPIRY_MINUTES` | Czas ważności kodu w minutach (domyślnie: 15)                                                               |
+| `KOD_COOLDOWN_SECONDS`    | Cooldown między użyciami `/kod` na użytkownika, w sekundach (domyślnie: 10)                                 |
+| `EMAIL_SUBJECT_CODE`      | Temat e-maila z kodem Netflixa — domyślnie: `Twój kod tymczasowego dostępu do serwisu Netflix`              |
 
 ### 2. Hasło aplikacyjne Google
 
@@ -44,25 +44,30 @@ Wypełnij dane w `.env`:
 ### 4. Uruchomienie
 
 **Standalone:**
+
 ```bash
 pip install -r requirements.txt
 python bot.py
 ```
 
 **Docker:**
+
 ```bash
 docker compose up --build
 ```
+
+
 
 ---
 
 ## Komendy
 
-| Komenda | Opis |
-|---------|------|
-| `/kod` | Pobierz najnowszy link do kodu weryfikacyjnego (cooldown: 10s na użytkownika) |
-| `/ping` | Sprawdza, czy bot jest online |
-| `/pomoc` | Lista wszystkich komend |
+| Komenda               | Opis                                                                          |
+| --------------------- | ----------------------------------------------------------------------------- |
+| `/kod`                | Pobierz najnowszy link do kodu weryfikacyjnego (cooldown: 10s na użytkownika) |
+| `/zmien-gospodarstwo` | Zmienia gospodarstwo domowe (często spotykane przy logowaniu na TV/Konsoli)   |
+| `/ping`               | Sprawdza, czy bot jest online                                                 |
+| `/pomoc`              | Lista wszystkich komend                                                       |
 
 ---
 
@@ -70,15 +75,9 @@ docker compose up --build
 
 Bot przeszukuje skrzynkę Gmail (ostatnie 24h) pod kątem e-maili Netflixa, których temat zawiera wartość z `EMAIL_SUBJECT_CODE`. Wyciąga link weryfikacyjny z treści i publikuje go na Discordzie z odliczaniem do wygaśnięcia.
 
-### Ulepszenia
-
-- **Rate limiting** — komenda `/kod` ma cooldown (domyślnie 10s) na użytkownika, co zapobiega spamowi
-- **Retry IMAP** — w przypadku problemów z połączeniem z Gmailiem bot automatycznie ponawia próbę (do 3 razy z backoffiem)
-- **Odporność na puste e-maile** — bot poprawnie obsługuje e-maile bez treści
-
 ### Gdzie publikować kod?
 
 Ustaw `POST_DESTINATION` w `.env`:
 
-- **`channel`** (domyślnie) — kod trafia na stały kanał określony w `DISCORD_CHANNEL_ID`
+- **`channel`** (domyślnie) — kod trafia na stały kanał określony w `DISCORD_CHANNEL_ID`. Jeśli `DISCORD_CHANNEL_ID` nie jest ustawione, kod trafia na kanał, gdzie użytkownik wpisał `/kod`.
 - **`interaction`** — kod trafia na kanał, gdzie użytkownik wpisał `/kod`
