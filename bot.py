@@ -71,7 +71,11 @@ def _prune_cooldowns() -> None:
 
 
 def _check_kod_cooldown(user_id: int) -> bool:
-    """Return True if the user is on cooldown."""
+    """Return True if the user is on cooldown.
+
+    Only records the timestamp when the user is *allowed* to proceed,
+    so repeated failed attempts don't extend the effective cooldown.
+    """
     # Prune stale entries on every call (cheap for small dicts)
     _prune_cooldowns()
 
@@ -79,6 +83,7 @@ def _check_kod_cooldown(user_id: int) -> bool:
     last_used = _kod_cooldowns.get(user_id, 0)
     if now - last_used < KOD_COOLDOWN_SECONDS:
         return True
+    # Only update when the user is allowed to proceed
     _kod_cooldowns[user_id] = now
     return False
 
@@ -282,11 +287,10 @@ async def send_url_to_discord(url: str, email_date: datetime, channel: discord.a
 @bot.tree.command(name="kod", description="Link do uzyskania kodu jednorazowego do Netflix'a")
 async def kod(interaction: discord.Interaction):
     if _check_kod_cooldown(interaction.user.id):
-        remaining = KOD_COOLDOWN_SECONDS - int(
-            asyncio.get_running_loop().time() - _kod_cooldowns[interaction.user.id]
-        )
+        last_used = _kod_cooldowns[interaction.user.id]
+        remaining = KOD_COOLDOWN_SECONDS - int(time.time() - last_used)
         await interaction.response.send_message(
-            f"⏳ Poczekaj jeszcze {remaining}s przed kolejnym użyciem komendy.",
+            f"⏳ Poczekaj jeszcze {max(remaining, 1)}s przed kolejnym użyciem komendy.",
             ephemeral=True,
         )
         return
