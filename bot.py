@@ -177,7 +177,10 @@ def _do_imap_fetch() -> tuple[str | None, datetime | None] | tuple[Literal["no_u
         log.info("No matching Netflix email found")
         return None, None
     finally:
-        mail.logout()
+        try:
+            mail.logout()
+        except Exception:
+            pass  # Connection may already be closed; ignore
 
 
 def _fetch_latest_netflix_email() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
