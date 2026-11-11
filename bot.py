@@ -4,6 +4,7 @@ import os
 import re
 import signal
 import socket
+import threading
 import time
 import asyncio
 import logging
@@ -60,12 +61,16 @@ bot = commands.Bot(command_prefix="", intents=intents)
 
 # ── Rate limiting ──────────────────────────────────────────────
 _kod_cooldowns: dict[int, float] = {}
+_kod_cooldowns_lock = threading.Lock()
 _synced = False
 _COOLDOWN_MAX_AGE = 86400  # 24 hours — stale entries older than this are pruned
 
 
 def _prune_cooldowns() -> None:
-    """Remove cooldown entries older than _COOLDOWN_MAX_AGE."""
+    """Remove cooldown entries older than _COOLDOWN_MAX_AGE.
+
+    Must be called while holding _kod_cooldowns_lock.
+    """
     cutoff = time.time() - _COOLDOWN_MAX_AGE
     stale = [uid for uid, t in _kod_cooldowns.items() if t < cutoff]
     for uid in stale:
@@ -78,16 +83,16 @@ def _check_kod_cooldown(user_id: int) -> bool:
     Only records the timestamp when the user is *allowed* to proceed,
     so repeated failed attempts don't extend the effective cooldown.
     """
-    # Prune stale entries on every call (cheap for small dicts)
-    _prune_cooldowns()
+    with _kod_cooldowns_lock:
+        _prune_cooldowns()
 
-    now = time.time()
-    last_used = _kod_cooldowns.get(user_id, 0)
-    if now - last_used < KOD_COOLDOWN_SECONDS:
-        return True
-    # Only update when the user is allowed to proceed
-    _kod_cooldowns[user_id] = now
-    return False
+        now = time.time()
+        last_used = _kod_cooldowns.get(user_id, 0)
+        if now - last_used < KOD_COOLDOWN_SECONDS:
+            return True
+        # Only update when the user is allowed to proceed
+        _kod_cooldowns[user_id] = now
+        return False
 
 
 # ── Helpers ────────────────────────────────────────────────────
@@ -290,7 +295,8 @@ async def send_url_to_discord(url: str, email_date: datetime, channel: discord.a
 @bot.tree.command(name="kod", description="Link do uzyskania kodu jednorazowego do Netflix'a")
 async def kod(interaction: discord.Interaction):
     if _check_kod_cooldown(interaction.user.id):
-        last_used = _kod_cooldowns[interaction.user.id]
+        with _kod_cooldowns_lock:
+            last_used = _kod_cooldowns[interaction.user.id]
         remaining = KOD_COOLDOWN_SECONDS - int(time.time() - last_used)
         await interaction.response.send_message(
             f"⏳ Poczekaj jeszcze {max(remaining, 1)}s przed kolejnym użyciem komendy.",
