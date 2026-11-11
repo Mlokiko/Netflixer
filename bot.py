@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import signal
 import time
 import asyncio
 import logging
@@ -462,7 +463,36 @@ def validate_config() -> None:
         exit(1)
 
 
+# ── Graceful Shutdown ──────────────────────────────────────────
+_shutdown_event = asyncio.Event()
+
+
+def _signal_handler(signum: int, frame) -> None:
+    """Handle SIGINT / SIGTERM by setting the shutdown event."""
+    sig_name = signal.Signals(signum).name
+    log.info(f"Received {sig_name}, initiating graceful shutdown...")
+    _shutdown_event.set()
+
+
+def _register_signal_handlers() -> None:
+    """Register signal handlers for graceful shutdown."""
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(sig, _signal_handler)
+        except (OSError, ValueError):
+            # signal.signal() can raise on non-main threads or when
+            # the signal is blocked (e.g. during unit tests)
+            log.debug(f"Could not register handler for {signal.Signals(sig).name}")
+
+
 # ── Start ──────────────────────────────────────────────────────
 if __name__ == "__main__":
     validate_config()
-    bot.run(DISCORD_TOKEN)
+    _register_signal_handlers()
+
+    try:
+        bot.run(DISCORD_TOKEN)
+    except KeyboardInterrupt:
+        # Fallback for environments where signal handlers don't fire
+        log.info("KeyboardInterrupt received, shutting down...")
+        bot.stop()
