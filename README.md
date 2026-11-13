@@ -21,7 +21,7 @@ Wypełnij dane w `.env`:
 | `DISCORD_BOT_TOKEN`       | Token bota z [Discord Developer Portal](https://discord.com/developers/applications)                        |
 | `EMAIL_ADDRESS`           | Twój adres Gmail                                                                                            |
 | `EMAIL_APP_PASSWORD`      | Hasło aplikacyjne Google (patrz niżej)                                                                      |
-| `POST_DESTINATION`        | Gdzie publikować kod: `channel` (na stałym kanale) lub `interaction` (tam, gdzie użytkownik wpisał komendę) |
+| `POST_DESTINATION`        | Gdzie publikować kod: `channel` (na stałym kanale) lub `interaction` (tam, gdzie użytkownik wpisał komendę) — **domyślnie: `interaction`** |
 | `DISCORD_CHANNEL_ID`      | Opcjonalnie — ID kanału (używane gdy `POST_DESTINATION=channel`)                                            |
 | `NETFLINK_EXPIRY_MINUTES` | Czas ważności kodu w minutach (domyślnie: 15)                                                               |
 | `KOD_COOLDOWN_SECONDS`    | Cooldown między użyciami `/kod` na użytkownika, w sekundach (domyślnie: 10)                                 |
@@ -79,5 +79,5 @@ Bot przeszukuje skrzynkę Gmail (ostatnie 24h) pod kątem e-maili Netflixa, któ
 
 Ustaw `POST_DESTINATION` w `.env`:
 
-- **`channel`** (domyślnie) — kod trafia na stały kanał określony w `DISCORD_CHANNEL_ID`. Jeśli `DISCORD_CHANNEL_ID` nie jest ustawione, kod trafia na kanał, gdzie użytkownik wpisał `/kod`.
-- **`interaction`** — kod trafia na kanał, gdzie użytkownik wpisał `/kod`
+- **`interaction`** (domyślnie) — kod trafia na kanał, gdzie użytkownik wpisał `/kod`
+- **`channel`** — kod trafia na stały kanał określony w `DISCORD_CHANNEL_ID`. Jeśli `DISCORD_CHANNEL_ID` nie jest ustawione, kod trafia na pierwszy dostępny kanał.

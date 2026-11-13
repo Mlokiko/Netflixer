@@ -24,7 +24,7 @@ load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID")
-POST_DESTINATION = os.getenv("POST_DESTINATION", "channel").lower()  # "channel" or "interaction"
+POST_DESTINATION = os.getenv("POST_DESTINATION", "interaction").lower()  # "channel" or "interaction"
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD")
 
