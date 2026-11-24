@@ -18,8 +18,6 @@ Bot Discorda, który pobiera kody weryfikacyjne Netflixa z Gmaila i publikuje je
 
 4. Otwórz wygenerowany URL, aby dodać bota na serwer
 
-
-
 ### 2. Hasło aplikacyjne Google
 
 1. Wejdź na [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
@@ -29,8 +27,6 @@ Bot Discorda, który pobiera kody weryfikacyjne Netflixa z Gmaila i publikuje je
 3. Utwórz nowe hasło dla aplikacji (np. `Netflix Bot`)
 
 4. Skopiuj wygenerowane hasło `xxxx xxxx xxxx xxxx`, (póżniej wkleisz je do `.env`)
-
-
 
 ### 3. Konfiguracja programu
 
@@ -47,7 +43,7 @@ Bot Discorda, który pobiera kody weryfikacyjne Netflixa z Gmaila i publikuje je
 | `DISCORD_CHANNEL_ID`           | Opcjonalnie — ID kanału (używane gdy `POST_DESTINATION=channel`)                                                                           |
 | `NETFLINK_EXPIRY_MINUTES`      | Czas ważności kodu w minutach (domyślnie: 15)                                                                                              |
 | `KOD_COOLDOWN_SECONDS`         | Cooldown między użyciami komend `kod` na użytkownika (domyślnie: 10)                                                                       |
-| `EMAIL_SUBJECT_TEMPORARY_CODE` | Temat e-maila z kodem tymczasowego dostępu Netflixa — domyślnie: `Twój kod tymczasowego dostępu do serwisu Netflix`                        |
+| `EMAIL_SUBJECT_TEMPORARY_CODE` | Temat e-maila z kodem tymczasowego dostępu Netflixa — np: `Twój kod tymczasowego dostępu do serwisu Netflix`                               |
 | `EMAIL_SUBJECT_LOGIN_CODE`     | Temat e-maila z kodem logowania Netflixa — np. `Netflix: kod logowania`                                                                    |
 
 ### 4. Uruchomienie
