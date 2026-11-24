@@ -32,10 +32,8 @@ NETFLIX_URL_PATTERN = re.compile(
     r"https://www\.netflix\.com/account/travel/verify\?nftoken=[^\s\"]+"
 )
 
-EMAIL_SUBJECT_CODE = os.getenv(
-    "EMAIL_SUBJECT_CODE",
-    "Twój kod tymczasowego dostępu do serwisu Netflix",
-).lower()
+EMAIL_SUBJECT_TEMPORARY_CODE = os.getenv("EMAIL_SUBJECT_CODE", "").lower()
+EMAIL_SUBJECT_LOGIN_CODE = os.getenv("EMAIL_SUBJECT_LOGIN_CODE", "").lower()
 NETFLINK_EXPIRY_MINUTES = int(os.getenv("NETFLINK_EXPIRY_MINUTES", "15"))
 KOD_COOLDOWN_SECONDS = int(os.getenv("KOD_COOLDOWN_SECONDS", "10"))
 IMAP_MAX_RETRIES = 3
@@ -157,8 +155,13 @@ def format_expiry_timestamp(email_date: datetime) -> str:
 
 
 # ── Email Fetching ─────────────────────────────────────────────
-def _do_imap_fetch() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
-    """Perform a single IMAP fetch attempt. Raises on transient errors."""
+def _do_imap_fetch(fetch_type: Literal["temporary", "login"] = "temporary") -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
+    """Perform a single IMAP fetch attempt. Raises on transient errors.
+    
+    Args:
+        fetch_type: Which email type to search for - 'temporary' for temporary access codes,
+                    'login' for login codes.
+    """
     mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
     mail.sock.settimeout(30)  # 30s timeout on all socket operations
     try:
@@ -185,8 +188,8 @@ def _do_imap_fetch() -> tuple[str | None, datetime | None] | tuple[Literal["no_u
             subject = decode_mime_header(raw_subject)
             subject_lower = subject.lower()
 
-            if EMAIL_SUBJECT_CODE in subject_lower:
-                log.info(f"Found Netflix email: {subject}")
+            if fetch_type == "temporary" and EMAIL_SUBJECT_TEMPORARY_CODE in subject_lower:
+                log.info(f"Found Netflix temporary access email: {subject}")
                 body = extract_body_text(msg)
                 url = extract_netflix_url(body)
 
@@ -199,7 +202,18 @@ def _do_imap_fetch() -> tuple[str | None, datetime | None] | tuple[Literal["no_u
                     log.warning("Netflix email found but no URL in body")
                     return "no_url", None
 
-        log.info("No matching Netflix email found")
+            if fetch_type == "login" and EMAIL_SUBJECT_LOGIN_CODE in subject_lower:
+                log.info(f"Found login email: {subject}")
+                body = extract_body_text(msg)
+                code_match = re.search(r'\b(\d{4})\b', body)
+                if code_match:
+                    code = code_match.group(1)
+                    date_str = msg.get("Date", "")
+                    email_date = parse_email_date(date_str)
+                    log.info(f"Found login code: {code}, email sent at {email_date}")
+                    return code, email_date
+
+        log.info(f"No matching Netflix {fetch_type} email found")
         return None, None
     finally:
         try:
@@ -209,11 +223,29 @@ def _do_imap_fetch() -> tuple[str | None, datetime | None] | tuple[Literal["no_u
 
 
 def _fetch_latest_netflix_email() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
-    """Fetch with retry logic for transient IMAP errors."""
+    """Fetch temporary access code with retry logic for transient IMAP errors."""
     for attempt in range(1, IMAP_MAX_RETRIES + 1):
         try:
-            result = _do_imap_fetch()
+            result = _do_imap_fetch(fetch_type="temporary")
             return result
+        except (imaplib.IMAP4.error, OSError, TimeoutError) as e:
+            log.warning(f"IMAP attempt {attempt}/{IMAP_MAX_RETRIES} failed: {e}")
+            if attempt < IMAP_MAX_RETRIES:
+                time.sleep(IMAP_BASE_DELAY * (2 ** (attempt - 1)))
+            else:
+                log.error(f"IMAP failed after {IMAP_MAX_RETRIES} attempts")
+                return None, None
+        except Exception as e:
+            log.error(f"IMAP error (not retrying): {e}")
+            return None, None
+
+
+def _fetch_latest_login_code() -> tuple[str | None, datetime | None]:
+    """Fetch login code with retry logic for transient IMAP errors."""
+    for attempt in range(1, IMAP_MAX_RETRIES + 1):
+        try:
+            result = _do_imap_fetch(fetch_type="login")
+            return (result[0], result[1])
         except (imaplib.IMAP4.error, OSError, TimeoutError) as e:
             log.warning(f"IMAP attempt {attempt}/{IMAP_MAX_RETRIES} failed: {e}")
             if attempt < IMAP_MAX_RETRIES:
@@ -228,6 +260,10 @@ def _fetch_latest_netflix_email() -> tuple[str | None, datetime | None] | tuple[
 
 async def fetch_latest_netflix_url() -> tuple[str | None, datetime | None] | tuple[Literal["no_url"], None]:
     return await asyncio.to_thread(_fetch_latest_netflix_email)
+
+
+async def fetch_latest_login_code() -> tuple[str | None, datetime | None]:
+    return await asyncio.to_thread(_fetch_latest_login_code)
 
 
 def _resolve_channel() -> discord.abc.Messageable | None:
@@ -292,8 +328,8 @@ async def send_url_to_discord(url: str, email_date: datetime, channel: discord.a
 
 
 # ── Slash Commands ─────────────────────────────────────────────
-@bot.tree.command(name="kod", description="Link do uzyskania kodu jednorazowego do Netflix'a")
-async def kod(interaction: discord.Interaction):
+@bot.tree.command(name="kod-tymczasowy", description="Zwraca link (trzeba się zalogować) do uzyskania kodu tymczasowego dostępu do Netflix'a")
+async def kod_tymczasowy(interaction: discord.Interaction):
     if _check_kod_cooldown(interaction.user.id):
         with _kod_cooldowns_lock:
             last_used = _kod_cooldowns[interaction.user.id]
@@ -324,6 +360,46 @@ async def kod(interaction: discord.Interaction):
         await interaction.followup.send("❌ Nie znaleziono nowego emaila od Netflix'a")
     
 
+@bot.tree.command(name="kod-logowanie", description="Zwraca kod logowania do Netflix'a")
+async def kod_logowanie(interaction: discord.Interaction):
+    if _check_kod_cooldown(interaction.user.id):
+        with _kod_cooldowns_lock:
+            last_used = _kod_cooldowns[interaction.user.id]
+        remaining = KOD_COOLDOWN_SECONDS - int(time.time() - last_used)
+        await interaction.response.send_message(
+            f"⏳ Poczekaj jeszcze {max(remaining, 1)}s przed kolejnym użyciem komendy.",
+            ephemeral=True,
+        )
+        return
+
+    await interaction.response.defer()
+    code, email_date = await fetch_latest_login_code()
+    if code:
+        remaining = format_remaining_time(email_date)
+        is_expired = remaining == "Wygasł"
+        if is_expired:
+            expiry_ts = format_expiry_timestamp(email_date)
+            embed = discord.Embed(
+                title="Kod logowania wygasł",
+                description=f"Wygasł: {expiry_ts}",
+                color=discord.Color.red(),
+            )
+        else:
+            embed = discord.Embed(
+                title="Kod logowania",
+                description=f"**{code}**\n\nStatus: {remaining}",
+                color=discord.Color.green(),
+            )
+        await interaction.followup.send(embed=embed)
+    else:
+        embed = discord.Embed(
+            title="Brak kodu logowania",
+            description="Nie znaleziono nowego emaila z kodem logowania od Netflix'a",
+            color=discord.Color.red(),
+        )
+        await interaction.followup.send(embed=embed)
+
+
 @bot.tree.command(name="zmien-gospodarstwo", description="Zmienia gospodarstwo domowe (często spotykane przy logowaniu na TV/Konsoli)")
 async def zmien_gospodarstwo(interaction: discord.Interaction):
     await interaction.response.send_message("TODO")
@@ -343,10 +419,10 @@ async def ping(interaction: discord.Interaction):
 async def pomoc(interaction: discord.Interaction):
     embed = discord.Embed(
         title="Dostępne komendy",
-        description="Lista wszystkich komend Netflixera:",
         color=discord.Color.blue(),
     )
-    embed.add_field(name="/kod", value="Link do uzyskania kodu jednorazowego do Netflix'a", inline=False)
+    embed.add_field(name="/kod-tymczasowy", value="Zwraca link (trzeba się zalogować) do uzyskania kodu tymczasowego dostępu do Netflix'a", inline=False)
+    embed.add_field(name="/kod-logowanie", value="Zwraca kod logowania do Netflix'a", inline=False)
     embed.add_field(name="/zmien-gospodarstwo", value="Zmienia gospodarstwo domowe (często spotykane przy logowaniu na TV/Konsoli)", inline=False)
     embed.add_field(name="/ping", value="Sprawdza, czy bot jest online", inline=False)
     embed.add_field(name="/pomoc", value="Wyświetla listę wszystkich komend bota", inline=False)

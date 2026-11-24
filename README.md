@@ -24,8 +24,9 @@ Wypełnij dane w `.env`:
 | `POST_DESTINATION`        | Gdzie publikować kod: `channel` (na stałym kanale) lub `interaction` (tam, gdzie użytkownik wpisał komendę) — **domyślnie: `interaction`** |
 | `DISCORD_CHANNEL_ID`      | Opcjonalnie — ID kanału (używane gdy `POST_DESTINATION=channel`)                                            |
 | `NETFLINK_EXPIRY_MINUTES` | Czas ważności kodu w minutach (domyślnie: 15)                                                               |
-| `KOD_COOLDOWN_SECONDS`    | Cooldown między użyciami `/kod` na użytkownika, w sekundach (domyślnie: 10)                                 |
+| `KOD_COOLDOWN_SECONDS`    | Cooldown między użyciami komend na użytkownika, w sekundach (domyślnie: 10)                                 |
 | `EMAIL_SUBJECT_CODE`      | Temat e-maila z kodem Netflixa — domyślnie: `Twój kod tymczasowego dostępu do serwisu Netflix`              |
+| `EMAIL_SUBJECT_LOGIN_CODE`| Temat e-maila z kodem logowania Netflixa — np. `Netflix: kod logowania`                                     |
 
 ### 2. Hasło aplikacyjne Google
 
@@ -62,22 +63,26 @@ docker compose up --build
 
 ## Komendy
 
-| Komenda               | Opis                                                                          |
-| --------------------- | ----------------------------------------------------------------------------- |
-| `/kod`                | Pobierz najnowszy link do kodu weryfikacyjnego (cooldown: 10s na użytkownika) |
-| `/zmien-gospodarstwo` | Zmienia gospodarstwo domowe (często spotykane przy logowaniu na TV/Konsoli)   |
-| `/ping`               | Sprawdza, czy bot jest online                                                 |
-| `/pomoc`              | Lista wszystkich komend                                                       |
+| Komenda                  | Opis                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `/kod-tymczasowy`        | Pobierz najnowszy link do kodu weryfikacyjnego (cooldown: 10s na użytkownika) |
+| `/kod-logowanie`         | Pobierz 4-cyfrowy kod logowania z e-maila Netflixa                            |
+| `/zmien-gospodarstwo`    | Zmienia gospodarstwo domowe (często spotykane przy logowaniu na TV/Konsoli)   |
+| `/ping`                  | Sprawdza, czy bot jest online                                                 |
+| `/pomoc`                 | Lista wszystkich komend                                                       |
 
 ---
 
 ## Jak to działa?
 
-Bot przeszukuje skrzynkę Gmail (ostatnie 24h) pod kątem e-maili Netflixa, których temat zawiera wartość z `EMAIL_SUBJECT_CODE`. Wyciąga link weryfikacyjny z treści i publikuje go na Discordzie z odliczaniem do wygaśnięcia.
+Bot przeszukuje skrzynkę Gmail (ostatnie 24h) pod kątem e-maili Netflixa:
+
+- **Kod tymczasowy** (`/kod-tymczasowy`) — wyszukuje e-maile z tematem zgodnym z `EMAIL_SUBJECT_CODE`, wyciąga link weryfikacyjny z treści i publikuje go na Discordzie z odliczaniem do wygaśnięcia.
+- **Kod logowania** (`/kod-logowanie`) — wyszukuje e-maile z tematem zgodnym z `EMAIL_SUBJECT_LOGIN_CODE`, wyciąga 4-cyfrowy kod z treści i zwraca go użytkownikowi.
 
 ### Gdzie publikować kod?
 
 Ustaw `POST_DESTINATION` w `.env`:
 
-- **`interaction`** (domyślnie) — kod trafia na kanał, gdzie użytkownik wpisał `/kod`
+- **`interaction`** (domyślnie) — kod trafia na kanał, gdzie użytkownik wpisał komendę
 - **`channel`** — kod trafia na stały kanał określony w `DISCORD_CHANNEL_ID`. Jeśli `DISCORD_CHANNEL_ID` nie jest ustawione, kod trafia na pierwszy dostępny kanał.
