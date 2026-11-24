@@ -32,7 +32,7 @@ NETFLIX_URL_PATTERN = re.compile(
     r"https://www\.netflix\.com/account/travel/verify\?nftoken=[^\s\"]+"
 )
 
-EMAIL_SUBJECT_TEMPORARY_CODE = os.getenv("EMAIL_SUBJECT_CODE", "").lower()
+EMAIL_SUBJECT_TEMPORARY_CODE = os.getenv("EMAIL_SUBJECT_TEMPORARY_CODE", "").lower()
 EMAIL_SUBJECT_LOGIN_CODE = os.getenv("EMAIL_SUBJECT_LOGIN_CODE", "").lower()
 NETFLINK_EXPIRY_MINUTES = int(os.getenv("NETFLINK_EXPIRY_MINUTES", "15"))
 KOD_COOLDOWN_SECONDS = int(os.getenv("KOD_COOLDOWN_SECONDS", "10"))
