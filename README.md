@@ -25,7 +25,7 @@ Wypełnij dane w `.env`:
 | `DISCORD_CHANNEL_ID`      | Opcjonalnie — ID kanału (używane gdy `POST_DESTINATION=channel`)                                            |
 | `NETFLINK_EXPIRY_MINUTES` | Czas ważności kodu w minutach (domyślnie: 15)                                                               |
 | `KOD_COOLDOWN_SECONDS`    | Cooldown między użyciami komend na użytkownika, w sekundach (domyślnie: 10)                                 |
-| `EMAIL_SUBJECT_CODE`      | Temat e-maila z kodem Netflixa — domyślnie: `Twój kod tymczasowego dostępu do serwisu Netflix`              |
+| `EMAIL_SUBJECT_TEMPORARY_CODE` | Temat e-maila z kodem tymczasowego dostępu Netflixa — domyślnie: `Twój kod tymczasowego dostępu do serwisu Netflix` |
 | `EMAIL_SUBJECT_LOGIN_CODE`| Temat e-maila z kodem logowania Netflixa — np. `Netflix: kod logowania`                                     |
 
 ### 2. Hasło aplikacyjne Google
@@ -77,7 +77,7 @@ docker compose up --build
 
 Bot przeszukuje skrzynkę Gmail (ostatnie 24h) pod kątem e-maili Netflixa:
 
-- **Kod tymczasowy** (`/kod-tymczasowy`) — wyszukuje e-maile z tematem zgodnym z `EMAIL_SUBJECT_CODE`, wyciąga link weryfikacyjny z treści i publikuje go na Discordzie z odliczaniem do wygaśnięcia.
+- **Kod tymczasowy** (`/kod-tymczasowy`) — wyszukuje e-maile z tematem zgodnym z `EMAIL_SUBJECT_TEMPORARY_CODE`, wyciąga link weryfikacyjny z treści i publikuje go na Discordzie z odliczaniem do wygaśnięcia.
 - **Kod logowania** (`/kod-logowanie`) — wyszukuje e-maile z tematem zgodnym z `EMAIL_SUBJECT_LOGIN_CODE`, wyciąga 4-cyfrowy kod z treści i zwraca go użytkownikowi.
 
 ### Gdzie publikować kod?
